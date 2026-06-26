@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    @apply bg-[#0b0f19] text-[#e2e8f0] min-h-screen antialiased selection:bg-teal-500 selection:text-black;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(20, 184, 166, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  @apply rounded-2xl shadow-xl transition-all duration-300;
+}
+
+.glass-panel:hover {
+  border-color: rgba(20, 184, 166, 0.15);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 15px -3px rgba(20, 184, 166, 0.05);
+}
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply rounded-xl px-4 py-2.5 text-white transition-all duration-200 outline-none w-full focus:border-teal-500 focus:ring-1 focus:ring-teal-500/20 placeholder:text-gray-500;
+}
+
+.glass-button-primary {
+  @apply font-semibold px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+}
+
+.glass-button-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply font-semibold px-5 py-2.5 rounded-xl text-white transition-all duration-300 hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98];
+}
+
+.glass-button-danger {
+  @apply font-semibold px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98];
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(11, 15, 25, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
