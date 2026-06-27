@@ -23,14 +23,23 @@ Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Vercel** (Reac
 ## Step 3 — Render (Backend API)
 
 - [ ] Sign up at https://render.com
-- [ ] New → **Blueprint** → connect GitHub repo
-- [ ] Render auto-detects `render.yaml` and builds via Docker (`backend/Dockerfile`) → creates service `racket-ladder-api`
-- [ ] Go to service **Environment** tab → add secrets:
-  - [ ] `DATABASE_URL` = Neon JDBC URL from Step 2
-  - [ ] `DB_USERNAME` = Neon username
-  - [ ] `DB_PASSWORD` = Neon password
+- [ ] New → **Web Service** → connect GitHub repo → select `RacketLadder`
+- [ ] Fill in settings:
+
+  | Setting | Value |
+  |---|---|
+  | Root Directory | `backend` |
+  | Environment | `Java` |
+  | Build Command | `mvn clean package -DskipTests` |
+  | Start Command | `java -jar target/racket-backend-0.0.1-SNAPSHOT.jar` |
+  | Instance Type | Free |
+
+- [ ] Go to **Environment** tab → add secrets:
+  - [ ] `DATABASE_URL` = `jdbc:postgresql://ep-orange-recipe-atfnobx5.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require`
+  - [ ] `DB_USERNAME` = `neondb_owner`
+  - [ ] `DB_PASSWORD` = (your Neon password)
   - [ ] `CORS_ORIGIN` = your Vercel URL (set this **after** Step 4, then redeploy)
-- [ ] Click **Deploy** (first Docker build takes ~5–7 min)
+- [ ] Click **Deploy** (first Maven build takes ~4–6 min)
 - [ ] After deploy, copy the service URL → save as `RENDER_URL`
   - Example: `https://racket-ladder-api.onrender.com`
 - [ ] Verify: open `RENDER_URL/api/leaderboard/global` in browser — should return `[]`
