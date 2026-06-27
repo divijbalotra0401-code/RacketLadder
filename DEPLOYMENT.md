@@ -4,23 +4,19 @@ Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Vercel** (Reac
 
 ---
 
-## Step 1 — Push to GitHub
+## Step 1 — Push to GitHub ✅
 
-- [ ] Create a repo at github.com (e.g. `scoreBoardTracker`)
-- [ ] `git remote add origin https://github.com/YOUR_USERNAME/scoreBoardTracker.git`
-- [ ] `git push -u origin main`
+- [x] Repo: https://github.com/divijbalotra0401-code/RacketLadder
+- [x] `git push -u origin main` — done
 
 ---
 
-## Step 2 — Neon (Database)
+## Step 2 — Neon (Database) ✅
 
-- [ ] Sign up at https://neon.tech
-- [ ] Create project → name it `racket-ladder`
-- [ ] Go to **Connection Details** → switch dropdown to **JDBC**
-- [ ] Copy and save:
-  - `DATABASE_URL` → `jdbc:postgresql://ep-xxx...neon.tech/neondb?sslmode=require`
-  - `DB_USERNAME` → (shown in connection details)
-  - `DB_PASSWORD` → (shown in connection details)
+- [x] Project created at https://neon.tech
+- [x] `DATABASE_URL` → `jdbc:postgresql://ep-orange-recipe-atfnobx5.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require`
+- [x] `DB_USERNAME` → `neondb_owner`
+- [x] `DB_PASSWORD` → (saved separately — do not commit)
 
 ---
 
