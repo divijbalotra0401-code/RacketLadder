@@ -130,7 +130,7 @@ export default function App() {
         return
       }
       if (password.length < 6) {
-        setAuthError('Password must be at least 6 characters')
+        setAuthError(authMode === 'register' ? 'Password must be at least 6 characters' : 'Incorrect username or password')
         setAuthLoading(false)
         return
       }
