@@ -5,28 +5,53 @@ import dev.racket.model.AuthToken;
 import dev.racket.repo.AppUserRepository;
 import dev.racket.repo.AuthTokenRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${CORS_ORIGIN:*}")
 public class AuthController {
     private final AppUserRepository userRepo;
     private final AuthTokenRepository tokenRepo;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    // Simple in-memory rate limiter: max 10 auth attempts per IP per 15 minutes
+    private final ConcurrentHashMap<String, AtomicInteger> attemptCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> windowStart = new ConcurrentHashMap<>();
+    private static final int MAX_ATTEMPTS = 10;
+    private static final long WINDOW_MS = 15 * 60 * 1000;
 
     public AuthController(AppUserRepository userRepo, AuthTokenRepository tokenRepo) {
         this.userRepo = userRepo;
         this.tokenRepo = tokenRepo;
     }
 
+    private boolean isRateLimited(String ip) {
+        long now = System.currentTimeMillis();
+        windowStart.putIfAbsent(ip, now);
+        attemptCounts.putIfAbsent(ip, new AtomicInteger(0));
+
+        if (now - windowStart.get(ip) > WINDOW_MS) {
+            windowStart.put(ip, now);
+            attemptCounts.put(ip, new AtomicInteger(0));
+        }
+
+        return attemptCounts.get(ip).incrementAndGet() > MAX_ATTEMPTS;
+    }
+
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> register(@RequestBody Map<String, String> body,
+                                      @RequestHeader(value = "X-Forwarded-For", defaultValue = "unknown") String ip) {
+        if (isRateLimited(ip)) {
+            return ResponseEntity.status(429).body(Map.of("error", "Too many attempts. Try again in 15 minutes."));
+        }
+
         String username = body.get("username");
         String password = body.get("password");
 
@@ -40,23 +65,19 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "Username already taken"));
         }
 
-        String hash = hashPassword(password);
-        AppUser user = new AppUser(username, hash);
+        AppUser user = new AppUser(username, passwordEncoder.encode(password));
         userRepo.save(user);
 
-        String tokenStr = UUID.randomUUID().toString();
-        AuthToken token = new AuthToken(tokenStr, user);
-        tokenRepo.save(token);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("token", tokenStr);
-        result.put("userId", user.getId());
-        result.put("username", user.getUsername());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(buildTokenResponse(user));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body,
+                                   @RequestHeader(value = "X-Forwarded-For", defaultValue = "unknown") String ip) {
+        if (isRateLimited(ip)) {
+            return ResponseEntity.status(429).body(Map.of("error", "Too many attempts. Try again in 15 minutes."));
+        }
+
         String username = body.get("username");
         String password = body.get("password");
 
@@ -66,24 +87,20 @@ public class AuthController {
 
         username = username.trim().toLowerCase();
         Optional<AppUser> optUser = userRepo.findByUsername(username);
-        if (optUser.isEmpty()) {
+        if (optUser.isEmpty() || !passwordEncoder.matches(password, optUser.get().getPasswordHash())) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
         }
 
-        AppUser user = optUser.get();
-        if (!hashPassword(password).equals(user.getPasswordHash())) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
+        return ResponseEntity.ok(buildTokenResponse(optUser.get()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String tokenStr = authHeader.substring(7).trim();
+            tokenRepo.findByToken(tokenStr).ifPresent(tokenRepo::delete);
         }
-
-        String tokenStr = UUID.randomUUID().toString();
-        AuthToken token = new AuthToken(tokenStr, user);
-        tokenRepo.save(token);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("token", tokenStr);
-        result.put("userId", user.getId());
-        result.put("username", user.getUsername());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(Map.of("message", "Logged out"));
     }
 
     @GetMapping("/me")
@@ -102,20 +119,20 @@ public class AuthController {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         String tokenStr = authHeader.substring(7).trim();
         Optional<AuthToken> opt = tokenRepo.findByToken(tokenStr);
-        return opt.map(AuthToken::getUser).orElse(null);
+        if (opt.isEmpty() || opt.get().isExpired()) return null;
+        return opt.get().getUser();
     }
 
-    private String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            // Simple salt for demo purposes
-            String salted = "racket_salt_" + password;
-            byte[] digest = md.digest(salted.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+    private Map<String, Object> buildTokenResponse(AppUser user) {
+        String tokenStr = UUID.randomUUID().toString();
+        tokenRepo.save(new AuthToken(tokenStr, user));
+        // Clean up expired tokens for this user
+        tokenRepo.deleteExpiredForUser(user.getId(), OffsetDateTime.now());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("token", tokenStr);
+        result.put("userId", user.getId());
+        result.put("username", user.getUsername());
+        return result;
     }
 }
