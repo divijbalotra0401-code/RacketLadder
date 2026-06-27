@@ -1,6 +1,6 @@
 # Deployment Checklist — Racket Ladder
 
-Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Vercel** (React frontend)
+Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Cloudflare Pages** (React frontend)
 
 ---
 
@@ -20,56 +20,60 @@ Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Vercel** (Reac
 
 ---
 
-## Step 3 — Render (Backend API)
+## Step 3 — Render (Backend API) ✅
 
-- [ ] Sign up at https://render.com
-- [ ] New → **Web Service** → connect GitHub repo → select `RacketLadder`
-- [ ] Fill in settings:
+- [x] Sign up at https://render.com
+- [x] New → **Web Service** → connect GitHub repo → select `RacketLadder`
+- [x] Fill in settings:
 
   | Setting | Value |
   |---|---|
   | Root Directory | `backend` |
-  | Environment | `Java` |
-  | Build Command | `mvn clean package -DskipTests` |
-  | Start Command | `java -jar target/racket-backend-0.0.1-SNAPSHOT.jar` |
+  | Environment | `Docker` |
   | Instance Type | Free |
 
-- [ ] Go to **Environment** tab → add secrets:
-  - [ ] `DATABASE_URL` = `jdbc:postgresql://ep-orange-recipe-atfnobx5.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require`
-  - [ ] `DB_USERNAME` = `neondb_owner`
-  - [ ] `DB_PASSWORD` = (your Neon password)
-  - [ ] `CORS_ORIGIN` = your Vercel URL (set this **after** Step 4, then redeploy)
-- [ ] Click **Deploy** (first Maven build takes ~4–6 min)
-- [ ] After deploy, copy the service URL → save as `RENDER_URL`
-  - Example: `https://racket-ladder-api.onrender.com`
-- [ ] Verify: open `RENDER_URL/api/leaderboard/global` in browser — should return `[]`
+- [x] Environment variables added:
+  - [x] `DATABASE_URL` = `jdbc:postgresql://ep-orange-recipe-atfnobx5.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require`
+  - [x] `DB_DRIVER` = `org.postgresql.Driver`
+  - [x] `DB_USERNAME` = `neondb_owner`
+  - [x] `DB_PASSWORD` = (your Neon password)
+  - [x] `DB_DIALECT` = `org.hibernate.dialect.PostgreSQLDialect`
+  - [x] `H2_CONSOLE` = `false`
+  - [ ] `CORS_ORIGIN` = your Cloudflare Pages URL (set this **after** Step 4, then redeploy)
+- [x] Deployed — `RENDER_URL` = `https://racketladder.onrender.com`
+- [x] Verified: `https://racketladder.onrender.com/api/leaderboard/global` returns `[]`
 
 > Free tier spins down after 15 min idle (30s cold start). Upgrade to $7/mo Starter to avoid this.
 
 ---
 
-## Step 4 — Vercel (Frontend)
+## Step 4 — Cloudflare Pages (Frontend)
 
-> **Note:** Deploy Vercel first to get its URL, then go back and set `CORS_ORIGIN` on Render (Step 3) and trigger a redeploy.
+> **Note:** Deploy Cloudflare Pages first to get its URL, then go back and set `CORS_ORIGIN` on Render (Step 3) and trigger a redeploy.
 
+- [ ] Sign up at https://pages.cloudflare.com
+- [ ] Create a project → **Connect to Git** → select `RacketLadder` repo
+- [ ] Fill in build settings:
 
+  | Setting | Value |
+  |---|---|
+  | Root Directory | `frontend` |
+  | Framework preset | `Vite` |
+  | Build command | `npm run build` |
+  | Build output directory | `dist` |
 
-- [ ] Sign up at https://vercel.com
-- [ ] New Project → import GitHub repo
-- [ ] Set **Root Directory** to `frontend`
-- [ ] Framework preset auto-detected as **Vite**
 - [ ] Add environment variable:
-  - [ ] `VITE_API_BASE_URL` = `https://racket-ladder-api.onrender.com/api`
-    (replace with your actual `RENDER_URL/api`)
-- [ ] Click **Deploy** (~2 min)
-- [ ] Copy the Vercel URL → save as `VERCEL_URL`
-  - Example: `https://racket-ladder.vercel.app`
+  - [ ] `VITE_API_BASE_URL` = `https://racketladder.onrender.com/api`
+- [ ] Click **Save and Deploy** (~2 min)
+- [ ] Copy the Cloudflare Pages URL → save as `CF_URL`
+  - Example: `https://racketladder.pages.dev`
+- [ ] Go back to Render → **Environment** tab → set `CORS_ORIGIN` = `CF_URL` → **Save** (auto-redeploys)
 
 ---
 
 ## Step 5 — Smoke Test
 
-- [ ] Open `VERCEL_URL` in browser
+- [ ] Open `CF_URL` in browser
 - [ ] Register a new account
 - [ ] Create a league
 - [ ] Add players
@@ -82,9 +86,9 @@ Stack: **Neon** (Postgres) → **Render** (Spring Boot API) → **Vercel** (Reac
 
 | Key | Value |
 |-----|-------|
-| `DATABASE_URL` | |
-| `DB_USERNAME` | |
-| `DB_PASSWORD` | |
-| `RENDER_URL` | |
-| `VERCEL_URL` | |
-| `CORS_ORIGIN` | (same as `VERCEL_URL`) |
+| `DATABASE_URL` | `jdbc:postgresql://ep-orange-recipe-atfnobx5.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require` |
+| `DB_USERNAME` | `neondb_owner` |
+| `DB_PASSWORD` | (do not commit) |
+| `RENDER_URL` | `https://racketladder.onrender.com` |
+| `CF_URL` | (fill in after Step 4) |
+| `CORS_ORIGIN` | (same as `CF_URL`) |

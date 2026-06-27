@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { createLeague, addPlayer, recordMatch, getLeaderboard, getMatches, register, login, getMe, getGlobalLeaderboard } from './api'
+import { createLeague, addPlayer, recordMatch, getLeaderboard, getMatches, register, login, getMe, getGlobalLeaderboard, updateMatch } from './api'
+import Landing from './Landing'
 
 const getPlayerColor = (id: number) => {
   const hue = (id * 137.5) % 360
@@ -28,6 +29,10 @@ export default function App() {
     winnerTeam: '',
     score: ''
   })
+
+  const [showLanding, setShowLanding] = useState(true)
+  const [editingMatch, setEditingMatch] = useState<any>(null)
+  const [editForm, setEditForm] = useState({ winnerId: '', score: '' })
 
   // Auth state
   const [authUser, setAuthUser] = useState<{ userId: number; username: string } | null>(null)
@@ -199,6 +204,31 @@ export default function App() {
     } catch (err: any) {
       alert(err.response?.data || 'Failed to record match')
     }
+  }
+
+  const openEdit = (match: any) => {
+    setEditingMatch(match)
+    setEditForm({
+      winnerId: match.winner?.id?.toString() || '',
+      score: match.score || ''
+    })
+  }
+
+  const handleEditMatch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingMatch || !editForm.winnerId) return
+    try {
+      await updateMatch(editingMatch.id, { winnerId: Number(editForm.winnerId), score: editForm.score })
+      setEditingMatch(null)
+      await refreshData()
+      await loadGlobalBoard()
+    } catch {
+      alert('Failed to update match')
+    }
+  }
+
+  if (showLanding) {
+    return <Landing onGetStarted={() => setShowLanding(false)} />
   }
 
   return (
@@ -560,6 +590,49 @@ export default function App() {
               </div>
             )}
 
+            {/* MATCH HISTORY */}
+            {activeTab === 'local' && matches.length > 0 && (
+              <div className="glass-panel p-6 animate-fade-in">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Match History
+                </h3>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {matches.map((m: any) => {
+                    const isDoubles = m.competitionType === 'DOUBLES'
+                    const side1 = isDoubles ? `${m.playerA?.name} & ${m.playerB?.name}` : m.playerA?.name
+                    const side2 = isDoubles ? `${m.playerC?.name} & ${m.playerD?.name}` : m.playerB?.name
+                    const winnerName = m.winner?.name
+                    return (
+                      <div key={m.id} className="flex items-center justify-between bg-white/[0.03] border border-white/5 rounded-xl px-4 py-2.5 text-sm">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className={`text-xs px-2 py-0.5 rounded font-bold ${isDoubles ? 'bg-indigo-500/10 text-indigo-400' : 'bg-teal-500/10 text-teal-400'}`}>
+                            {isDoubles ? 'D' : 'S'}
+                          </span>
+                          <span className="text-gray-300 truncate">{side1} <span className="text-gray-500">vs</span> {side2}</span>
+                          <span className="text-emerald-400 font-semibold shrink-0">→ {winnerName}</span>
+                          {m.score && <span className="text-gray-500 text-xs font-mono shrink-0">{m.score}</span>}
+                        </div>
+                        {authUser && (
+                          <button
+                            onClick={() => openEdit(m)}
+                            className="ml-3 text-gray-500 hover:text-teal-400 transition-colors shrink-0"
+                            title="Edit result"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* GLOBAL LEADERBOARD */}
             {activeTab === 'global' && (
               <div className="glass-panel p-6 animate-fade-in">
@@ -648,6 +721,55 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Edit Match Modal */}
+      {editingMatch && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setEditingMatch(null) }}
+        >
+          <div className="glass-panel p-8 w-full max-w-sm animate-fade-in">
+            <h2 className="text-xl font-bold mb-5">Edit Match Result</h2>
+            <form onSubmit={handleEditMatch} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">Winner</label>
+                <select
+                  className="glass-input text-sm"
+                  value={editForm.winnerId}
+                  onChange={e => setEditForm({ ...editForm, winnerId: e.target.value })}
+                >
+                  <option value="">Select winner</option>
+                  {editingMatch.competitionType === 'DOUBLES' ? (
+                    <>
+                      <option value={editingMatch.playerA?.id}>{editingMatch.playerA?.name} & {editingMatch.playerB?.name} (Team A)</option>
+                      <option value={editingMatch.playerC?.id}>{editingMatch.playerC?.name} & {editingMatch.playerD?.name} (Team B)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value={editingMatch.playerA?.id}>{editingMatch.playerA?.name}</option>
+                      <option value={editingMatch.playerB?.id}>{editingMatch.playerB?.name}</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">Score (Optional)</label>
+                <input
+                  className="glass-input"
+                  value={editForm.score}
+                  onChange={e => setEditForm({ ...editForm, score: e.target.value })}
+                  placeholder="e.g. 21-18, 15-21, 21-19"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="glass-button-primary flex-1">Save Changes</button>
+                <button type="button" className="glass-button-secondary flex-1" onClick={() => setEditingMatch(null)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal */}
       {showAuthModal && (

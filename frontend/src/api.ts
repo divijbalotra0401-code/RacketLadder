@@ -32,6 +32,9 @@ export const addPlayer = (name: string, leagueId: number) => api.post('/players'
 // Matches
 export const recordMatch = (payload: any) => api.post('/matches', payload).then(r => r.data)
 
+export const updateMatch = (id: number, payload: { winnerId: number; score: string }) =>
+  api.put(`/matches/${id}`, payload).then(r => r.data)
+
 // Read (public, no auth needed)
 export const getLeaderboard = (leagueId: number) => api.get(`/leagues/${leagueId}/leaderboard`).then(r => r.data)
 export const getMatches = (leagueId: number) => api.get(`/leagues/${leagueId}/matches`).then(r => r.data)

@@ -133,6 +133,36 @@ public class ApiController {
         return ResponseEntity.ok(matchRepo.save(m));
     }
 
+    @PutMapping("/matches/{id}")
+    public ResponseEntity<?> updateMatch(@PathVariable Long id,
+                                         @RequestBody Map<String, Object> body,
+                                         HttpServletRequest request) {
+        AppUser user = resolveUser(request);
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
+
+        Optional<Match> matchOpt = matchRepo.findById(id);
+        if (matchOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Match m = matchOpt.get();
+
+        if (m.getLeague().getOwner() == null || !m.getLeague().getOwner().getId().equals(user.getId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only the league owner can edit matches"));
+        }
+
+        Long winnerId = getLong(body, "winnerId");
+        if (winnerId != null) {
+            Optional<Player> w = playerRepo.findById(winnerId);
+            if (w.isEmpty()) return ResponseEntity.badRequest().body("Winner not found");
+            m.setWinner(w.get());
+        }
+
+        if (body.containsKey("score")) {
+            Object s = body.get("score");
+            m.setScore(s == null ? null : s.toString().trim().isEmpty() ? null : s.toString().trim());
+        }
+
+        return ResponseEntity.ok(matchRepo.save(m));
+    }
+
     // Read endpoints — no auth required
     @GetMapping("/leagues/{id}/matches")
     public ResponseEntity<?> getMatches(@PathVariable Long id) {
